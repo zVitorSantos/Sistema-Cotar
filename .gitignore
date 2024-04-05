@@ -1,0 +1,7 @@
+bkp/
+build/
+dist/
+spec/
+pedidos/
+*.env
+pedidos.db
