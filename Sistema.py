@@ -11,8 +11,6 @@ from PIL import ImageTk, Image
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
-from cryptography.fernet import Fernet
-from getpass import getpass
 import sqlite3
 import base64
 import requests
@@ -27,7 +25,6 @@ def check_for_updates():
         # Faz uma solicitação GET para obter a versão mais recente
         response = requests.get(version_url)
         latest_version = response.text.strip()
-    
 
         try:
             # Tenta ler a versão atual do arquivo version.txt local
@@ -36,8 +33,6 @@ def check_for_updates():
         except FileNotFoundError:
             # Se o arquivo version.txt não for encontrado, define a versão atual como 0
             current_version = "0"
-            
-        latest_version = "1.0"
 
         # Compara a versão mais recente com a versão atual
         if latest_version > current_version:
@@ -51,7 +46,7 @@ def check_for_updates():
             
     except requests.exceptions.RequestException as e:
         print(f"Erro ao verificar atualizações: {e}")
-        
+
 check_for_updates()
 
 class Application(tk.Tk):
@@ -64,10 +59,6 @@ class Application(tk.Tk):
         self.processed_files = []
 
         load_dotenv()
-        
-        # Create a key for encryption and decryption
-        self.key = Fernet.generate_key()
-        self.cipher_suite = Fernet(self.key)
 
         self.session = requests.Session()
 

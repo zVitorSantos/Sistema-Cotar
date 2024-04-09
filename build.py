@@ -4,7 +4,7 @@ import subprocess
 
 def build_executable(source_file, icon_file, output_path):
     """Função para construir um executável com PyInstaller."""
-    subprocess.run(["py", "-m", "PyInstaller", "--onefile", f"--icon={icon_file}", "--specpath", "./spec", "--distpath", output_path, source_file])
+    subprocess.run(["py", "-m", "PyInstaller", "--onefile", "--noconsole", f"--icon={icon_file}", "--specpath", "./spec", "--distpath", output_path, source_file])
 
 def create_zip_folder(version):
     """Função para criar um arquivo ZIP com a versão especificada."""
