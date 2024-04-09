@@ -4,5 +4,6 @@ dist/
 spec/
 pedidos/
 *.env
-pedidos.db
 *.zip
+*.exe
+pedidos.db

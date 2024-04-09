@@ -25,7 +25,7 @@ def create_zip_folder(version):
     shutil.copy("./version.txt", version_folder)
 
     # Cria um arquivo ZIP do diretório Precificador v{version} com o mesmo nome
-    shutil.make_archive(version_folder, 'zip', dist_folder, f"Sistema-v{version}")
+    shutil.make_archive(zip_file_path[:-4], 'zip', dist_folder, "Sistema")
 
     # Exclui o diretório Precificador v{version} após a criação do ZIP
     shutil.rmtree(version_folder)
