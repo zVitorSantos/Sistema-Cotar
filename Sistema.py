@@ -36,7 +36,6 @@ def check_for_updates():
 
         # Compara a versão mais recente com a versão atual
         if latest_version > current_version:
-            print("Uma nova versão está disponível. Atualizando...\n")
             # Inicia o update.exe
             subprocess.Popen(['update.exe'])
             # Termina o main.exe
