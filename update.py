@@ -4,7 +4,6 @@ import requests
 import zipfile
 import sys
 import shutil
-import progressbar
 
 def update():
     try:
@@ -39,25 +38,12 @@ def update():
         # Inicializa a barra de progresso
         downloaded = 0
         chunk_size = 1024 
-
-        widgets = [
-            progressbar.Percentage(),
-            ' ',        
-            progressbar.Bar(marker='=', left='[', right=']'), 
-            ' ',
-            progressbar.FileTransferSpeed(unit='B'), 
-            ' | ',
-            progressbar.FormatLabel('%(value).2f/%(max_value).2f MB'),
-        ]
         
         # Abre o arquivo de saída para escrita em modo binário
         with open(output_file, "wb") as file:
-            # Inicializa a barra de progresso com o tamanho total esperado em MB
-            with progressbar.ProgressBar(max_value=total_size / (1024 * 1024), widgets=widgets) as pbar:
-                for data in response.iter_content(chunk_size=chunk_size):
-                    file.write(data)
-                    downloaded += len(data)
-                    pbar.update(downloaded / (1024 * 1024))
+            for data in response.iter_content(chunk_size=chunk_size):
+                file.write(data)
+                downloaded += len(data)
 
         # Verifica se o arquivo foi baixado completamente
         if downloaded != total_size:
