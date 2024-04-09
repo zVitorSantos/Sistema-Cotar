@@ -4,7 +4,7 @@ import requests
 import zipfile
 import sys
 import shutil
-from tqdm import tqdm
+import progressbar
 
 def update():
     try:
@@ -32,23 +32,52 @@ def update():
 
         # Faz uma solicitação GET para baixar o novo arquivo .zip
         response = requests.get(file_url, stream=True)
-
-        # Obtém o tamanho total do arquivo
         total_size = int(response.headers.get('content-length', 0))
+        
+        # Nome do arquivo de saída
+        output_file = f"Sistema-v{latest_version}.zip"
 
-        # Cria a barra de progresso
-        progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+        # Inicializa a barra de progresso
+        downloaded = 0
+        chunk_size = 1024 
 
-        # Salva o novo arquivo .zip
-        with open(f"Sistema-v{latest_version}.zip", "wb") as file:
-            for data in response.iter_content(chunk_size=1024):
-                progress_bar.update(len(data))
-                file.write(data)
+        widgets = [
+            progressbar.Percentage(),
+            ' ',        
+            progressbar.Bar(marker='=', left='[', right=']'), 
+            ' ',
+            progressbar.FileTransferSpeed(unit='B'), 
+            ' | ',
+            progressbar.SimpleProgress(format='%(value).2f'),
+            ' MB ', 
+            ' ',
+            progressbar.FormatLabel('| %(elapsed)s'), 
+        ]
 
-        progress_bar.close()
+        # Abre o arquivo de saída para escrita em modo binário
+        with open(output_file, "wb") as file:
+            # Inicializa a barra de progresso com o tamanho total esperado
+            with progressbar.ProgressBar(max_value=total_size, widgets=widgets) as pbar:
+                for data in response.iter_content(chunk_size=chunk_size):
+                    file.write(data)
+                    downloaded += len(data)
+                    pbar.update(downloaded)
 
+        # Verifica se o arquivo foi baixado completamente
+        if downloaded != total_size:
+            print("\nErro: O download do arquivo não foi concluído com sucesso.")
+            input("\nPressione qualquer tecla para continuar...")
+            sys.exit()
+        
+        # Verifica o tamanho do arquivo baixado
+        downloaded_file_size = os.path.getsize(output_file)
+        if downloaded_file_size != total_size:
+            print("\nErro: O tamanho do arquivo baixado não corresponde ao tamanho esperado.")
+            input("\nPressione qualquer tecla para continuar...")
+            sys.exit()
+        
         # Descompacta o arquivo .zip
-        with zipfile.ZipFile(f"Sistema-v{latest_version}.zip", 'r') as zip_ref:
+        with zipfile.ZipFile(output_file, 'r') as zip_ref:
             zip_ref.extractall(".")
         
         # Substitui o antigo arquivo .exe pelo novo
@@ -74,7 +103,5 @@ def update():
             
     except requests.exceptions.RequestException as e:
         print(f"Erro ao baixar a nova versão: {e}")
-        
-    
 
 update()
