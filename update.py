@@ -4,6 +4,7 @@ import requests
 import zipfile
 import sys
 import shutil
+import progressbar
 
 def update():
     try:
@@ -30,14 +31,44 @@ def update():
 
         # Faz uma solicitação GET para baixar o novo arquivo .zip
         response = requests.get(file_url, stream=True)
+        total_size = int(response.headers.get('content-length', 0))
         
         # Nome do arquivo de saída
         output_file = f"Sistema-v{latest_version}.zip"
+
+        # Inicializa a barra de progresso
+        downloaded = 0
+        chunk_size = 1024 
+
+        widgets = [
+            progressbar.Percentage(),
+            ' ',        
+            progressbar.Bar(marker='=', left='[', right=']'), 
+            ' ',
+            progressbar.FileTransferSpeed(unit='B'), 
+            ' | ',
+            progressbar.FormatLabel('%(value).2f/%(max_value).2f MB'),
+        ]
         
-        # Baixa o arquivo
-        with open(output_file, 'wb') as file:
-            for data in response.iter_content():
-                file.write(data)
+        # Abre o arquivo de saída para escrita em modo binário
+        with open(output_file, "wb") as file:
+            # Inicializa a barra de progresso com o tamanho total esperado em MB
+            with progressbar.ProgressBar(max_value=total_size / (1024 * 1024), widgets=widgets) as pbar:
+                for data in response.iter_content(chunk_size=chunk_size):
+                    file.write(data)
+                    downloaded += len(data)
+                    pbar.update(downloaded / (1024 * 1024))
+
+        # Verifica se o arquivo foi baixado completamente
+        if downloaded != total_size:
+            print("\nErro: O download do arquivo não foi concluído com sucesso.")
+            sys.exit()
+        
+        # Verifica o tamanho do arquivo baixado
+        downloaded_file_size = os.path.getsize(output_file)
+        if downloaded_file_size != total_size:
+            print("\nErro: O tamanho do arquivo baixado não corresponde ao tamanho esperado.")
+            sys.exit()
         
         # Descompacta o arquivo .zip
         with zipfile.ZipFile(output_file, 'r') as zip_ref:
@@ -67,7 +98,6 @@ def update():
         
     except requests.exceptions.RequestException as e:
         print(f"Erro ao baixar a nova versão: {e}")
-        input("\nPressione qualquer tecla para continuar...")
         # Fecha o console em caso de erro
         os.system('exit')
 
