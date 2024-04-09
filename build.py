@@ -9,7 +9,7 @@ def build_executable(source_file, icon_file, output_path):
 def create_zip_folder(version):
     """Função para criar um arquivo ZIP com a versão especificada."""
     dist_folder = "./dist"
-    version_folder = f"{dist_folder}/Sistema-v{version}"
+    version_folder = f"{dist_folder}/Sistema"
     zip_file_path = f"{dist_folder}/Sistema-v{version}.zip"
 
     # Verifica se o arquivo ZIP já existe e o exclui, se necessário

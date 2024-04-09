@@ -181,6 +181,7 @@ class Application(tk.Tk):
         # Create a connection to the database
         self.conn = sqlite3.connect('pedidos.db')
         self.cursor = self.conn.cursor()
+        
         ######################################################
 
         # Create a Notebook widget

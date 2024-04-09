@@ -34,20 +34,25 @@ def update():
         # Nome do arquivo de saída
         output_file = f"Sistema-v{latest_version}.zip"
         
+        # Baixa o arquivo
+        with open(output_file, 'wb') as file:
+            for data in response.iter_content():
+                file.write(data)
+        
         # Descompacta o arquivo .zip
         with zipfile.ZipFile(output_file, 'r') as zip_ref:
             zip_ref.extractall(".")
         
         # Substitui o antigo arquivo .exe pelo novo
         os.remove("Sistema.exe")
-        os.rename(f"./Sistema-v{latest_version}/Sistema.exe", "Sistema.exe")
+        os.rename("./Sistema/Sistema.exe", "Sistema.exe")
 
         # Atualiza a current_version no arquivo version.txt
         with open("version.txt", "w") as file:
             file.write(latest_version)
 
         # Deleta o que sobrou na pasta
-        shutil.rmtree(f"./Sistema-v{latest_version}")
+        shutil.rmtree("./Sistema")
 
         # Deleta o .zip
         os.remove(f"Sistema-v{latest_version}.zip")
