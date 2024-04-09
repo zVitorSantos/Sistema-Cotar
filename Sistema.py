@@ -167,18 +167,20 @@ class Application(tk.Tk):
         # Get screen width and height
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-
+    
         # Calculate position
         position_top = int(screen_height / 2 - 720 / 2)
         position_right = int(screen_width / 2 - 450 / 2)
-
+    
         # Set position and size
         self.geometry(f"460x638+{position_right}+{position_top}")
-
+    
+        # Prevent window from being resized
+        self.resizable(False, False)
+    
         # Create a connection to the database
         self.conn = sqlite3.connect('pedidos.db')
         self.cursor = self.conn.cursor()
-
         ######################################################
 
         # Create a Notebook widget
@@ -187,7 +189,8 @@ class Application(tk.Tk):
 
         # Create a frame for the "Cotar" tab
         self.frame_cotar = ttk.Frame(self.notebook)
-        #self.frame_cotar.configure(height=200)
+        # Configure the column to expand
+        self.grid_columnconfigure(0, weight=1)
         self.notebook.add(self.frame_cotar, text='Cotar')
 
         self.cotar(self.frame_cotar)
@@ -198,6 +201,10 @@ class Application(tk.Tk):
         self.frame_results = ttk.Frame(self.notebook)
         self.notebook.add(self.frame_results, text='Resultados')
 
+        # Configure the row and column to expand
+        self.frame_results.grid_rowconfigure(0, weight=1)
+        self.frame_results.grid_columnconfigure(0, weight=1)
+        
         # Save the label in an instance variable
         self.label_info = tk.Label(self.frame_results, text="Para ver os resultados de uma cotação, na aba 'Cotar'\ninsira o ID do pedido e clique em 'Buscar'.", justify=tk.CENTER)
         self.label_info.grid(row=0, column=0, sticky='nsew')
@@ -261,8 +268,8 @@ class Application(tk.Tk):
         self.entry_id.bind('<Return>', simulate_button_press)
 
         # Create a text box for the quote
-        self.textbox = tk.Text(parent, height=33, width=56)
-        self.textbox.grid(row=1, column=0, columnspan=4)  # Change column to 1
+        self.textbox = tk.Text(parent, height=33)
+        self.textbox.grid(row=1, column=0, columnspan=4, sticky=tk.W + tk.E)
 
         # Configure the width of each column in the parent
         parent.columnconfigure(0, weight=1) 
@@ -270,7 +277,7 @@ class Application(tk.Tk):
 
         # Create a frame to hold the buttons
         self.frame_buttons = tk.Frame(parent)
-        self.frame_buttons.grid(row=2, column=0, columnspan=4)  # Change row to 2
+        self.frame_buttons.grid(row=2, column=0, columnspan=4) 
 
         # Configure the width of each column in the frame
         for i in range(4):
@@ -1650,7 +1657,7 @@ class Application(tk.Tk):
         cidade = self.edit_order_cidade_entry.get()
         endereco = self.edit_order_endereco_entry.get()
         volume = int(self.edit_order_volume_entry.get())
-        weight = float(self.edit_order_weight_entry.get())
+        weight = float(self.edit_order_peso_entry.get())
         measures = self.edit_order_medidas_entry.get()
 
         # Update the order in the database
