@@ -424,7 +424,7 @@ class Application(tk.Tk):
             lines = quote.split("\n")
 
             # Find the start and end indices
-            start_index = next(i for i, line in enumerate(lines) if line.startswith(f"{id_pedido}\n"))
+            start_index = next(i for i, line in enumerate(lines) if line.startswith(f"\n{id_pedido}"))
             end_index = next(i for i, line in enumerate(lines) if line.startswith("*Obs:* Material plástico, em caixa.")) + 1
 
             # Extract the pedido information from the quote
@@ -868,7 +868,7 @@ class Application(tk.Tk):
         for produto, quantidade in zip(produtos, qtde):
             quote += f"* {produto} - {quantidade}\n"
 
-        quote = f"{id_pedido}\n"
+        quote += f"\n{id_pedido}"
         quote += f"\n*CPF/CNPJ Remetente:* {cpf_remetente}\n"
         quote += f"*Nome Destinatário:* {nome_destinatario}\n"
         quote += f"*CPF/CNPJ Destinatário:* {cpf_destinatario}\n"

@@ -4,8 +4,6 @@ import requests
 import zipfile
 import sys
 import shutil
-import progressbar
-import ctypes
 
 def update():
     try:
