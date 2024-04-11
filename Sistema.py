@@ -8,6 +8,7 @@ import math
 import fitz
 import PyPDF2
 from PIL import ImageTk, Image
+from fuzzywuzzy import fuzz
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
@@ -16,6 +17,8 @@ import base64
 import requests
 import http.client
 import json
+
+# *TODO: Arrumei função de copiar, falta fazer update.
 
 def check_for_updates():
     try:
@@ -222,7 +225,8 @@ class Application(tk.Tk):
         self.frame_pedidos = tk.Frame(self.frame_pedidos)
         self.frame_pedidos.grid(sticky='nsew')
 
-        ######################################################      
+        ######################################################     
+         
         # Create a frame for the "Produtos" tab
         self.frame_produtos = ttk.Frame(self.notebook)
         self.notebook.add(self.frame_produtos, text='Produtos')
@@ -235,6 +239,19 @@ class Application(tk.Tk):
         self.frame_forms_produtos.grid(row=0, sticky='nsew')
         
         ######################################################      
+        
+        # Create a frame for the "transportadoras" tab
+        self.frame_transportadora = ttk.Frame(self.notebook)
+        self.notebook.add(self.frame_transportadora, text='Transportadoras')
+
+        # Create a frame for the forms in the "transportadoras" tab
+        self.frame_forms_transportadora = tk.Frame(self.frame_transportadora)
+        self.frame_forms_transportadora.grid(row=0, sticky='nsew')
+
+        self.aba_transportadoras()
+        
+        ######################################################  
+            
         # Create a frame for the "config" tab
         self.frame_config = ttk.Frame(self.notebook)
         self.notebook.add(self.frame_config, text='Opções')
@@ -317,10 +334,33 @@ class Application(tk.Tk):
         # Extract the necessary data from the fetched row
         nome_destinatario, cpf_remetente, cpf_destinatario, valor_nfe, cep, estado, cidade, endereco, volume, weight, measures = pedido[1:]
 
-        # If any necessary field is None, call login_mercos
+        # If any necessary field is None, show a messagebox and return
         necessary_fields = [nome_destinatario, cpf_remetente, cpf_destinatario, valor_nfe, cep, estado, cidade, endereco, volume, weight, measures]
-        if None in necessary_fields:
-            self.login_mercos(id_pedido)
+        field_names = ["nome_destinatario", "cpf_remetente", "cpf_destinatario", "valor_nfe", "cep", "estado", "cidade", "endereco", "volume", "weight", "measures"]
+        
+        friendly_field_names = {
+            "nome_destinatario": "Nome do Destinatário",
+            "cpf_remetente": "CPF do Remetente",
+            "cpf_destinatario": "CPF do Destinatário",
+            "valor_nfe": "Valor da NFe",
+            "cep": "CEP",
+            "estado": "Estado",
+            "cidade": "Cidade",
+            "endereco": "Endereço",
+            "volume": "Volume",
+            "weight": "Peso",
+            "measures": "Medidas"
+        }
+        
+        missing_fields = []
+        
+        for field, field_name in zip(necessary_fields, field_names):
+            if field is None or field == "":
+                missing_fields.append(friendly_field_names[field_name])
+        
+        if missing_fields:
+            messagebox.showerror("Error", f"Campos necessários faltando:\n{', '.join(missing_fields)}")
+            return
 
         # Display the quote
         quote = self.display_quote(id_pedido, nome_destinatario, cpf_remetente, cpf_destinatario, valor_nfe, cep, estado, cidade, endereco, volume, weight, measures)
@@ -431,7 +471,7 @@ class Application(tk.Tk):
             lines = quote.split("\n")
 
             # Find the start and end indices
-            start_index = next(i for i, line in enumerate(lines) if line.startswith(f"\n{id_pedido}"))
+            start_index = next(i for i, line in enumerate(lines) if line.startswith(f"{id_pedido}"))
             end_index = next(i for i, line in enumerate(lines) if line.startswith("*Obs:* Material plástico, em caixa.")) + 1
 
             # Extract the pedido information from the quote
@@ -468,36 +508,41 @@ class Application(tk.Tk):
             # Find the product in the database
             for id_produto_db, nome_db, peso_db, medidas_db, unidades_por_volume_db in produtos_db:
                 # Split the database product name into keywords
-                nome_db_keywords = set(nome_db.split())
-
-                # Calculate the match score as the number of common keywords
-                match_score = len(produto_keywords & nome_db_keywords)
-
-                # If this product has a higher match score, update the best match score and product info
-                if match_score > best_match_score:
-                    best_match_score = match_score
-                    best_match_info = (nome_db, peso_db, medidas_db, unidades_por_volume_db)
+                nome_db_keywords = set(nome_db.lower().split())
+            
+                # Check if any keyword in the database product name is in the product name
+                if any(keyword in produto.lower() for keyword in nome_db_keywords):
+                    # Calculate the match score using fuzzywuzzy
+                    match_score = fuzz.ratio(produto.lower(), nome_db.lower())
+            
+                    # If this product has a higher match score, update the best match score and product info
+                    if match_score > best_match_score:
+                        best_match_score = match_score
+                        best_match_info = (nome_db, peso_db, medidas_db, unidades_por_volume_db)
 
             # If a matching product was found, calculate the volume and weight
             if best_match_info is not None:
                 nome_db, peso_db, medidas_db, unidades_por_volume_db = best_match_info
 
-                # Calculate the volume and weight for this product
-                volume = math.ceil(quantidade / unidades_por_volume_db) 
-                weight = quantidade * peso_db
+                # Check if the database product name is a substring of the product name
+                if nome_db.lower() in produto.lower():
+                    # Calculate the volume and weight for this product
+                    volume = math.ceil(quantidade / unidades_por_volume_db) 
+                    weight = quantidade * peso_db
 
-                # Add the volume and weight to the total volume and weight
-                total_volume += volume
-                total_weight += weight
+                    # Add the volume and weight to the total volume and weight
+                    total_volume += volume
+                    total_weight += weight
 
-                # Update the measures if they are not None
-                if medidas_db is not None:
-                    medidas = medidas_db
+                    # Update the measures if they are not None
+                    if medidas_db is not None:
+                        medidas = medidas_db
+                else:
+                    print(f"Product name does not match: {produto} != {nome_db}")
+                    unknown_products.append(produto)
             else:
+                print("No match found")
                 unknown_products.append(produto)
-
-        if unknown_products:
-            print(f"Unknown products: {unknown_products}")
 
         return total_volume, total_weight, medidas
 
@@ -512,18 +557,25 @@ class Application(tk.Tk):
         headers = {'Authorization': f'Token token={token}'}
         
         # Faça a requisição à API
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers)
 
         print(response)
+        print(response.text)
 
         # Converta a resposta da API em um objeto JSON
         data = response.json()
 
-        print(data)
-        
-        # Extraia o nome da cidade e a sigla do estado do objeto JSON
-        cidade = data['cidade']['nome']
-        estado_sigla = data['estado']['sigla']
+        # Verifique se a chave 'cidade' está presente no dicionário
+        if 'cidade' in data and 'nome' in data['cidade']:
+            cidade = data['cidade']['nome']
+        else:
+            cidade = None
+
+        # Verifique se a chave 'estado' está presente no dicionário
+        if 'estado' in data and 'sigla' in data['estado']:
+            estado_sigla = data['estado']['sigla']
+        else:
+            estado_sigla = None
 
         # Converta a sigla do estado para o nome completo
         estado = self.state_names.get(estado_sigla, estado_sigla)
@@ -534,9 +586,14 @@ class Application(tk.Tk):
         # Convert the state name to abbreviation
         estado = self.state_abbreviations.get(estado, estado)
 
-        # Query the transportadora table for transportadoras that serve the given state
-        self.cursor.execute('SELECT id, nome FROM transportadora WHERE estados LIKE ?', ('%' + estado + '%',))
-
+        # Verifique se estado é None antes de tentar concatená-lo
+        if estado is not None:
+            self.cursor.execute('SELECT id, nome FROM transportadora WHERE estados LIKE ?', ('%' + estado + '%',))
+        else:
+            # Trate o caso em que estado é None
+            print("Estado is None")
+            messagebox.showerror("Error", "Estado is None")
+            
         # Fetch all matching transportadoras
         transportadoras = self.cursor.fetchall()
 
@@ -715,7 +772,7 @@ class Application(tk.Tk):
                         qtde.append('0')
                 else:
                     print("Quantidade not found")
-                    messagebox.showerror("Error", "Quantidade not found for product: " + produto)
+                    messagebox.showerror("Error", "Quantidade não encontrada para o produto: " + produto)
 
                 #print(quantidade)
 
@@ -799,25 +856,33 @@ class Application(tk.Tk):
 
         volume, peso, medidas = self.calc_volume_peso(produtos, qtde)
         peso = round(peso, 2)
-
-        if not produto:
-            messagebox.showerror("Error", "Produto está faltando.")
-        if not qtde:
-            messagebox.showerror("Error", "Quantidade está faltando.")
-        if not nome_destinatario:
-            messagebox.showerror("Error", "Nome do destinatário está faltando.")
-        if not cpf_destinatario:
-            messagebox.showerror("Error", "CPF do destinatário está faltando.")
-        if not endereco:
-            messagebox.showerror("Error", "Endereço está faltando.")
-        if not cep:
-            messagebox.showerror("Error", "CEP está faltando.")
-        if not cidade:
-            messagebox.showerror("Error", "Cidade está faltando.")
-        if not estado:
-            messagebox.showerror("Error", "Estado está faltando.")
-        if not valor_nfe:
-            messagebox.showerror("Error", "Valor da nota fiscal está faltando.")
+    
+        # If any necessary field is None, show a messagebox and return
+        necessary_fields = [nome_destinatario, cpf_remetente, cpf_destinatario, valor_nfe, cep, estado, cidade, endereco, volume, peso, medidas]
+        field_names = ["nome_destinatario", "cpf_remetente", "cpf_destinatario", "valor_nfe", "cep", "estado", "cidade", "endereco", "volume", "peso", "medidas"]
+        
+        friendly_field_names = {
+            "nome_destinatario": "Nome do Destinatário",
+            "cpf_remetente": "CPF do Remetente",
+            "cpf_destinatario": "CPF do Destinatário",
+            "valor_nfe": "Valor da NFe",
+            "cep": "CEP",
+            "estado": "Estado",
+            "cidade": "Cidade",
+            "endereco": "Endereço",
+            "volume": "Volume",
+            "peso": "Peso",
+            "medidas": "Medidas"
+        }
+        
+        missing_fields = []
+        
+        for field, field_name in zip(necessary_fields, field_names):
+            if field is None or field == "":
+                missing_fields.append(friendly_field_names[field_name])
+        
+        if missing_fields:
+            messagebox.showerror("Error", f"Campos necessários faltando:\n{', '.join(missing_fields)}")
 
         # Get the transportadoras that attend the order
         transportadoras = self.get_transportadoras(estado)
@@ -1503,6 +1568,13 @@ class Application(tk.Tk):
 
         # Bind a double-click event to the Treeview
         self.orders_treeview.bind("<Double-1>", self.edit_order)
+        
+        # Create a Scrollbar and associate it with the Treeview
+        scrollbar = ttk.Scrollbar(self.frame_pedidos, orient="vertical", command=self.orders_treeview.yview)
+        scrollbar.grid(row=1, column=1, sticky='ns')
+        
+        # Configure the Treeview to update the Scrollbar whenever it's moved
+        self.orders_treeview.configure(yscrollcommand=scrollbar.set)
 
         # Populate the Treeview with the orders from the database
         self.populate_orders_treeview()
@@ -1690,6 +1762,162 @@ class Application(tk.Tk):
 
             # Close the edit order window
             self.edit_order_window.destroy()
+            
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+            
+    def aba_transportadoras(self):
+        # Configure column 0 of frame_transportadora to expand
+        self.frame_transportadora.columnconfigure(0, weight=1)
+
+        # Create a Treeview to display all transportadoras
+        self.transportadoras_treeview = ttk.Treeview(self.frame_transportadora, columns=("ID", "Nome", "Estados", "Dias"), show="headings", height=28)
+        self.transportadoras_treeview.heading("ID", text="ID")
+        self.transportadoras_treeview.heading("Nome", text="Nome")
+        self.transportadoras_treeview.heading("Estados", text="Estados")
+        self.transportadoras_treeview.heading("Dias", text="Dias")
+        
+        # Set the initial width of each column
+        self.transportadoras_treeview.column("ID", width=2)
+        self.transportadoras_treeview.column("Nome", width=50)
+        self.transportadoras_treeview.column("Estados", width=100)
+        self.transportadoras_treeview.column("Dias", width=160)
+
+        # Bind a double-click event to the Treeview
+        self.transportadoras_treeview.bind("<Double-1>", self.edit_transportadora)
+
+        # Populate the Treeview with the transportadoras from the database
+        self.populate_transportadoras_treeview()
+
+        # Add empty items to fill the rest of the Treeview
+        num_transportadoras = len(self.transportadoras_treeview.get_children())
+        for _ in range(self.transportadoras_treeview['height'] - num_transportadoras):
+            self.transportadoras_treeview.insert('', 'end', values=("", "", "", "", "", "", ""))
+
+        # Pack the Treeview with anchor='center' to center it horizontally
+        self.transportadoras_treeview.grid(row=1, column=0, sticky='ew')
+
+        # Change the background color of every other row to create a line effect
+        for i, item in enumerate(self.transportadoras_treeview.get_children()):
+            if i % 2 == 0:
+                self.transportadoras_treeview.item(item, tags='evenrow')
+            else:
+                self.transportadoras_treeview.item(item, tags='oddrow')
+
+        # Create a Button to refresh the Treeview
+        self.refresh_button = tk.Button(self.frame_transportadora, text="Atualizar", command=self.populate_transportadoras_treeview)
+        self.refresh_button.grid(row=2, column=0)
+
+    def edit_transportadora(self, event):
+        # Get the selected transportadora from the Treeview
+        selected_transportadora = self.transportadoras_treeview.item(self.transportadoras_treeview.selection())
+
+        # Open a new window to edit the transportadora
+        self.edit_transportadora_window = tk.Toplevel(self.frame_transportadora)
+
+        # Set the background color
+        self.edit_transportadora_window.configure(bg='light gray')
+
+        # Center the window on the screen
+        window_width = 250
+        window_height = 200
+        screen_width = self.edit_transportadora_window.winfo_screenwidth()
+        screen_height = self.edit_transportadora_window.winfo_screenheight()
+        position_top = int(screen_height / 2 - window_height / 2)
+        position_right = int(screen_width / 2 - window_width / 2)
+        self.edit_transportadora_window.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
+        
+        self.edit_transportadora_nome_label = tk.Label(self.edit_transportadora_window, text="Nome", bg='light gray')
+        self.edit_transportadora_nome_label.pack()
+        self.edit_transportadora_nome_entry = tk.Entry(self.edit_transportadora_window, width=50)
+        self.edit_transportadora_nome_entry.insert(0, selected_transportadora['values'][1])  
+        self.edit_transportadora_nome_entry.pack()
+        
+        # Create a Label and Entry for each transportadora field
+        self.edit_transportadora_estados_label = tk.Label(self.edit_transportadora_window, text="Estados", bg='light gray')
+        self.edit_transportadora_estados_label.pack()
+        self.edit_transportadora_estados_entry = tk.Entry(self.edit_transportadora_window, width=50)
+        self.edit_transportadora_estados_entry.insert(0, selected_transportadora['values'][2])  
+        self.edit_transportadora_estados_entry.pack()
+        
+        self.edit_transportadora_dias_label = tk.Label(self.edit_transportadora_window, text="Dias", bg='light gray')
+        self.edit_transportadora_dias_label.pack()
+        self.edit_transportadora_dias_entry = tk.Entry(self.edit_transportadora_window, width=50)
+        self.edit_transportadora_dias_entry.insert(0, selected_transportadora['values'][3])
+        self.edit_transportadora_dias_entry.pack()
+
+        # Create a Button to confirm the update of the transportadora
+        self.confirm_edit_transportadora_button = tk.Button(self.edit_transportadora_window, text="Confirmar", command=lambda: self.update_transportadora(selected_transportadora['values'][0])) 
+        self.confirm_edit_transportadora_button.place(relx=0.2, rely=0.93, anchor='center')
+
+        # Bind the Enter key to update the transportadora
+        self.edit_transportadora_window.bind('<Return>', lambda event: self.update_transportadora(selected_transportadora['values'][0]))
+
+        # Create a Button to delete the transportadora
+        self.delete_transportadora_button = tk.Button(self.edit_transportadora_window, text="Apagar", command=lambda: self.delete_transportadora(selected_transportadora['values'][0]))  
+        self.delete_transportadora_button.place(relx=0.51, rely=0.93, anchor='center')
+
+        # Bind the Delete key to delete the transportadora
+        self.edit_transportadora_window.bind('<Delete>', lambda event: self.delete_transportadora(selected_transportadora['values'][0]))
+
+        # Create a Button to cancel the update of the transportadora
+        self.cancel_edit_transportadora_button = tk.Button(self.edit_transportadora_window, text="Cancelar", command=self.edit_transportadora_window.destroy)
+        self.cancel_edit_transportadora_button.place(relx=0.8, rely=0.93, anchor='center')
+
+        # Bind the Esc key to close the window
+        self.edit_transportadora_window.bind('<Escape>', lambda event: self.edit_transportadora_window.destroy())
+
+    def populate_transportadoras_treeview(self):
+        # Clear the Treeview
+        for i in self.transportadoras_treeview.get_children():
+            self.transportadoras_treeview.delete(i)
+
+        # Get all fields
+        self.cursor.execute("SELECT id, nome, estados, dias FROM transportadora")
+        transportadoras_db = self.cursor.fetchall()
+
+        # Add each transportadora to the Treeview
+        for transportadora in transportadoras_db:
+            self.transportadoras_treeview.insert('', 'end', values=transportadora)
+
+    def update_transportadora(self, transportadora_id):
+        # Get the transportadora fields from the Entries
+        nome = self.edit_transportadora_nome_entry.get()
+        estados = self.edit_transportadora_estados_entry.get()
+        dias = self.edit_transportadora_dias_entry.get()
+
+        # Update the transportadora in the database
+        self.cursor.execute("""
+            UPDATE transportadora 
+            SET nome = ?, estados = ?, dias = ?
+            WHERE id = ?
+        """, (nome, estados, dias, transportadora_id))
+        self.conn.commit()
+
+        # Update the Treeview
+        self.populate_transportadoras_treeview()
+
+        # Close the edit transportadora window
+        self.edit_transportadora_window.destroy()
+
+    def delete_transportadora(self, transportadora_id):
+        # Ask for confirmation before deletion
+        if messagebox.askyesno("Confirmação", "Tem certeza que deseja apagar este pedido?"):
+            # Delete the transportadora from the database
+            self.cursor.execute("DELETE FROM transportadora WHERE id_pedido = ?", (transportadora_id,))
+            
+            # Delete the associated products from the database
+            self.cursor.execute("DELETE FROM produtos_pedido WHERE id_pedido = ?", (transportadora_id,))
+
+            self.conn.commit()
+
+            # Update the Treeview
+            self.populate_transportadoras_treeview()
+
+            # Close the edit transportadora window
+            self.edit_transportadora_window.destroy()
 
 
 #####################################################################################################
